@@ -216,6 +216,7 @@ impl<'source> ResolveValue<'source> for ast::Expression<'source> {
                         for variant in variants {
                             let key = match variant.key {
                                 ast::VariantKey::Identifier { name } => name.into(),
+                                ast::VariantKey::String { value } => value.into(),
                                 ast::VariantKey::NumberLiteral { value } => {
                                     FluentValue::try_number(value)
                                 }
