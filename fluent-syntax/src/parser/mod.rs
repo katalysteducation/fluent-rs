@@ -222,6 +222,10 @@ fn get_variant_key<'p>(ps: &mut ParserStream<'p>) -> Result<ast::VariantKey<'p>>
         ast::VariantKey::NumberLiteral {
             value: get_number_literal(ps)?,
         }
+    } else if ps.is_current_byte(b'"') {
+        ast::VariantKey::String {
+            value: get_string_literal(ps)?,
+        }
     } else {
         ast::VariantKey::Identifier {
             name: get_identifier(ps)?.name,
@@ -606,36 +610,7 @@ fn get_expression<'p>(ps: &mut ParserStream<'p>) -> Result<ast::Expression<'p>> 
 fn get_inline_expression<'p>(ps: &mut ParserStream<'p>) -> Result<ast::InlineExpression<'p>> {
     match ps.source.get(ps.ptr) {
         Some(b'"') => {
-            ps.ptr += 1; // "
-            let start = ps.ptr;
-            while ps.ptr < ps.length {
-                match ps.source[ps.ptr] {
-                    b'\\' => match ps.source.get(ps.ptr + 1) {
-                        Some(b'\\') => ps.ptr += 2,
-                        Some(b'{') => ps.ptr += 2,
-                        Some(b'"') => ps.ptr += 2,
-                        Some(b'u') => {
-                            ps.ptr += 2;
-                            ps.skip_unicode_escape_sequence(4)?;
-                        }
-                        Some(b'U') => {
-                            ps.ptr += 2;
-                            ps.skip_unicode_escape_sequence(6)?;
-                        }
-                        _ => return error!(ErrorKind::Generic, ps.ptr),
-                    },
-                    b'"' => {
-                        break;
-                    }
-                    b'\n' => {
-                        return error!(ErrorKind::Generic, ps.ptr);
-                    }
-                    _ => ps.ptr += 1,
-                }
-            }
-
-            ps.expect_byte(b'"')?;
-            let slice = ps.get_slice(start, ps.ptr - 1);
+            let slice = get_string_literal(ps)?;
             Ok(ast::InlineExpression::StringLiteral { value: slice })
         }
         Some(b) if b.is_ascii_digit() => {
@@ -754,6 +729,40 @@ fn get_call_arguments<'p>(ps: &mut ParserStream<'p>) -> Result<Option<ast::CallA
     ps.expect_byte(b')')?;
 
     Ok(Some(ast::CallArguments { positional, named }))
+}
+
+fn get_string_literal<'p>(ps: &mut ParserStream<'p>) -> Result<&'p str> {
+    ps.ptr += 1; // "
+    let start = ps.ptr;
+    while ps.ptr < ps.length {
+        match ps.source[ps.ptr] {
+            b'\\' => match ps.source.get(ps.ptr + 1) {
+                Some(b'\\') => ps.ptr += 2,
+                Some(b'{') => ps.ptr += 2,
+                Some(b'"') => ps.ptr += 2,
+                Some(b'u') => {
+                    ps.ptr += 2;
+                    ps.skip_unicode_escape_sequence(4)?;
+                }
+                Some(b'U') => {
+                    ps.ptr += 2;
+                    ps.skip_unicode_escape_sequence(6)?;
+                }
+                _ => return error!(ErrorKind::Generic, ps.ptr),
+            },
+            b'"' => {
+                break;
+            }
+            b'\n' => {
+                return error!(ErrorKind::Generic, ps.ptr);
+            }
+            _ => ps.ptr += 1,
+        }
+    }
+
+    ps.expect_byte(b'"')?;
+    let slice = ps.get_slice(start, ps.ptr - 1);
+    Ok(slice)
 }
 
 fn get_number_literal<'p>(ps: &mut ParserStream<'p>) -> Result<&'p str> {

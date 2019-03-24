@@ -64,6 +64,7 @@ pub struct Variant<'ast> {
 #[derive(Debug, PartialEq)]
 pub enum VariantKey<'ast> {
     Identifier { name: &'ast str },
+    String { value: &'ast str },
     NumberLiteral { value: &'ast str },
 }
 
