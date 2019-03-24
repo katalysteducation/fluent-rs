@@ -197,6 +197,9 @@ impl<'source> ResolveValue<'source> for ast::Expression<'source> {
                                 ast::VariantKey::Identifier { name } => {
                                     FluentValue::String(name.into())
                                 }
+                                ast::VariantKey::String { value } => {
+                                    FluentValue::String(value.into())
+                                }
                                 ast::VariantKey::NumberLiteral { value } => {
                                     FluentValue::into_number(value)
                                 }

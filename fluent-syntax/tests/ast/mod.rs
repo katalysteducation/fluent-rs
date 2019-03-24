@@ -255,6 +255,7 @@ where
 #[serde(tag = "type")]
 pub enum VariantKeyDef<'ast> {
     Identifier { name: &'ast str },
+    String { value: &'ast str },
     NumberLiteral { value: &'ast str },
 }
 
