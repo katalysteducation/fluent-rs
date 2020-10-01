@@ -66,34 +66,7 @@ where
     pub(super) fn get_inline_expression(&mut self) -> Result<ast::InlineExpression<S>> {
         match self.source.as_ref().as_bytes().get(self.ptr) {
             Some(b'"') => {
-                self.ptr += 1; // "
-                let start = self.ptr;
-                while let Some(b) = self.source.as_ref().as_bytes().get(self.ptr) {
-                    match b {
-                        b'\\' => match self.source.as_ref().as_bytes().get(self.ptr + 1) {
-                            Some(b'\\') | Some(b'{') | Some(b'"') => self.ptr += 2,
-                            Some(b'u') => {
-                                self.ptr += 2;
-                                self.skip_unicode_escape_sequence(4)?;
-                            }
-                            Some(b'U') => {
-                                self.ptr += 2;
-                                self.skip_unicode_escape_sequence(6)?;
-                            }
-                            _ => return error!(ErrorKind::Generic, self.ptr),
-                        },
-                        b'"' => {
-                            break;
-                        }
-                        b'\n' => {
-                            return error!(ErrorKind::Generic, self.ptr);
-                        }
-                        _ => self.ptr += 1,
-                    }
-                }
-
-                self.expect_byte(b'"')?;
-                let slice = self.source.slice(start..self.ptr - 1);
+                let slice = self.get_string_literal()?;
                 Ok(ast::InlineExpression::StringLiteral { value: slice })
             }
             Some(b) if b.is_ascii_digit() => {
@@ -144,5 +117,36 @@ where
             }
             _ => error!(ErrorKind::ExpectedInlineExpression, self.ptr),
         }
+    }
+
+    pub(super) fn get_string_literal(&mut self) -> Result<S> {
+        self.ptr += 1; // "
+        let start = self.ptr;
+        while let Some(b) = self.source.as_ref().as_bytes().get(self.ptr) {
+            match b {
+                b'\\' => match self.source.as_ref().as_bytes().get(self.ptr + 1) {
+                    Some(b'\\') | Some(b'{') | Some(b'"') => self.ptr += 2,
+                    Some(b'u') => {
+                        self.ptr += 2;
+                        self.skip_unicode_escape_sequence(4)?;
+                    }
+                    Some(b'U') => {
+                        self.ptr += 2;
+                        self.skip_unicode_escape_sequence(6)?;
+                    }
+                    _ => return error!(ErrorKind::Generic, self.ptr),
+                },
+                b'"' => {
+                    break;
+                }
+                b'\n' => {
+                    return error!(ErrorKind::Generic, self.ptr);
+                }
+                _ => self.ptr += 1,
+            }
+        }
+
+        self.expect_byte(b'"')?;
+        Ok(self.source.slice(start..self.ptr - 1))
     }
 }
